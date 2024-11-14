@@ -2,12 +2,10 @@
 
 namespace WebVideoDownloader.App
 {
-    public static class Helper
+    public static class StringValidator
     {
-        public static bool ValidateYouTubeUrl(Dictionary<string, string> requestData)
+        public static bool ValidateYouTubeUrl(string videoUrl)
         {
-            var videoUrl = GetValueOrDefault(requestData, "VideoUrl");
-
             if (string.IsNullOrEmpty(videoUrl))
             {
                 Console.WriteLine("Invalid or missing Video URL.");
@@ -21,15 +19,6 @@ namespace WebVideoDownloader.App
             }
 
             return true;
-        }
-
-        private static string? GetValueOrDefault(Dictionary<string, string> dictionary, string key)
-        {
-            if (dictionary != null && dictionary.TryGetValue(key, out var value) && !string.IsNullOrEmpty(value))
-            {
-                return value;
-            }
-            return null;
         }
 
         private static bool IsValidYouTubeUrl(string url)
