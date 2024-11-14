@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "WebVideoDownloader.App": {
+      "commandName": "Project",
+      "workingDirectory": "$(ProjectDir)"
+    }
+  }
+}
