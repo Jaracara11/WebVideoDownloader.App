@@ -23,9 +23,7 @@ namespace WebVideoDownloader.App
     {
       var window = (PhotinoWindow)sender!;
 
-      string response = $"Received URL in the backend baby =]: \"{message}\"";
-
-      Console.WriteLine(response);
+      string response = $"Received URL: \"{message}\"";
 
       window.SendWebMessage(response);
     }

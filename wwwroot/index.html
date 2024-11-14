@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="assets/css/bootstrap.min.css" rel="stylesheet">
   <link href="assets/css/style.css" rel="stylesheet">
-  <!-- <script src="assets/js/main.js" defer></script> -->
+  <script src="assets/js/main.js" defer></script>
 
   <title>Web Video Downloader</title>
 </head>
@@ -14,28 +14,14 @@
 <body>
   <div class="container">
     <div class="form-group">
-      <label for="urlInput">Enter Video URL:</label>
-      <input type="text" id="urlInput" class="form-control" placeholder="Enter URL here" />
+      <label for="url-input">Enter Video URL:</label>
+      <input type="text" id="url-input" class="form-control" placeholder="Enter URL here" />
     </div>
+    <br>
     <div>
-      <button class="btn btn-primary center" onclick="callDotNet()">Call .NET</button>
+      <button class="btn btn-primary center" onclick="sendUrl()">Download Video</button>
     </div>
   </div>
-
-  <script>
-    function callDotNet() {
-      var url = document.getElementById('urlInput').value;
-      if (url) {
-        window.external.sendMessage(url);
-      } else {
-        alert('Please enter a valid URL.');
-      }
-    }
-
-    window.external.receiveMessage(message => {
-      alert(message);
-    });
-  </script>
 </body>
 
 </html>
