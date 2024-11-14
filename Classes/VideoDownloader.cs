@@ -30,7 +30,6 @@ namespace WebVideoDownloader.App
                 var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 var outputFilePath = Path.Combine(_tempDirectory, $"downloaded_video_{timestamp}.%(ext)s");
                 var arguments = $"-f b -o \"{outputFilePath}\" --ffmpeg-location \"{ffmpegPath}\" \"{videoUrl}\"";
-
                 var errorMessages = await ExecuteProcessAsync(ytDlpPath, arguments);
 
                 if (errorMessages.Any())
@@ -47,9 +46,7 @@ namespace WebVideoDownloader.App
                 {
                     Console.WriteLine($"File ready for streaming: {downloadedFile}");
                     window.SendWebMessage($"File ready for download: {downloadedFile}");
-
                     SendFilePathToFrontendAsync(downloadedFile, window);
-
                     DeleteFileAfterDelay(downloadedFile, TimeSpan.FromMinutes(5));
                 }
                 else
