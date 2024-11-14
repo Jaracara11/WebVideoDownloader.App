@@ -19,13 +19,15 @@ namespace WebVideoDownloader.App
       window.WaitForClose();
     }
 
-    private static void RequestHandler(object? sender, string message)
+    private static async void RequestHandler(object? sender, string message)
     {
       var window = (PhotinoWindow)sender!;
-
       string response = $"Received URL: \"{message}\"";
-
       window.SendWebMessage(response);
+
+      var requestData = new Dictionary<string, string> { { "VideoUrl", message } };
+
+      await VideoDownloader.DownloadYoutubeVideoAsync(requestData, window);
     }
   }
 }

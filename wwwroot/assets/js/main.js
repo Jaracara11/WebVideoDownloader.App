@@ -7,6 +7,8 @@ const sendUrl = () => {
   }
 }
 
-window.external.receiveMessage(message => {
+window.external.receiveMessage((message) => {
+  const statusElement = document.getElementById('status');
+  statusElement.innerText = message;
   alert(message);
 });
