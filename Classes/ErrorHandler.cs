@@ -13,7 +13,7 @@ namespace WebVideoDownloader.App.Classes
                 _ => "An unknown error occurred."
             };
 
-            SendErrorMessage(window, errorMessage);
+            window?.SendWebMessage($"Error: {errorMessage}");
         }
 
         private static string HandleException(Exception ex, string? customMessage)
@@ -29,11 +29,6 @@ namespace WebVideoDownloader.App.Classes
             Console.WriteLine($"Error: {message}");
 
             return message;
-        }
-
-        private static void SendErrorMessage(PhotinoWindow? window, string message)
-        {
-            window?.SendWebMessage($"Error: {message}");
         }
     }
 }

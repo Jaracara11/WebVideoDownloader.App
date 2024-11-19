@@ -13,16 +13,15 @@ window.external.receiveMessage((message) => {
 
   if (message.startsWith("FileReady:")) {
     const filePath = message.replace("FileReady:", "");
-    const downloadLink = document.createElement('a');
+    const downloadMessage = `File successfully downloaded at: ${filePath}`;
+    const pTag = document.createElement('p');
 
-    downloadLink.href = `file://${filePath}`;
-    downloadLink.download = filePath.split(/[/\\]/).pop();
-    downloadLink.innerText = 'Click here to download the video';
-    downloadLink.style.display = 'block';
-
+    pTag.innerText = downloadMessage;
+    pTag.style.color = 'green';
     statusDiv.innerHTML = '';
-    statusDiv.appendChild(downloadLink);
+    statusDiv.appendChild(pTag);
   } else if (message.startsWith("Error:")) {
     statusDiv.innerText = message.replace("Error:", "");
+    statusDiv.style.color = 'red';
   }
 });

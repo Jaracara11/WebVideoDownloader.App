@@ -1,5 +1,6 @@
 using Photino.NET;
 using System.Diagnostics;
+using System.Text;
 
 namespace WebVideoDownloader.App.Classes
 {
@@ -26,7 +27,7 @@ namespace WebVideoDownloader.App.Classes
                     return;
                 }
 
-                var arguments = $"-f b -o \"{saveFilePath}.%(ext)s\" --ffmpeg-location \"{_ffmpegPath}\" \"{videoUrl}\"";
+                var arguments = $"-f b -o \"{saveFilePath}\" --ffmpeg-location \"{_ffmpegPath}\" \"{videoUrl}\"";
                 bool ytDlpProcess = await ExecuteYtDlpProcessAsync(_ytDlpPath, arguments, window);
 
                 if (!ytDlpProcess)
@@ -38,7 +39,7 @@ namespace WebVideoDownloader.App.Classes
 
                 if (!string.IsNullOrEmpty(downloadedFile) && File.Exists(downloadedFile))
                 {
-                    SendFileReadyMessage(window, downloadedFile);
+                    window.SendWebMessage($"FileReady: {downloadedFile}");
                 }
                 else
                 {
@@ -76,34 +77,52 @@ namespace WebVideoDownloader.App.Classes
 
             using var process = new Process { StartInfo = processStartInfo };
 
-            process.Start();
-            await process.WaitForExitAsync();
+            var errorOutput = new StringBuilder();
 
-            if (process.ExitCode != 0)
+            process.ErrorDataReceived += (sender, e) =>
             {
-                ErrorHandler.HandleError("yt-dlp process failed.", window);
+                if (e.Data != null)
+                {
+                    errorOutput.AppendLine(e.Data);
+                }
+            };
+
+            try
+            {
+                process.Start();
+                process.BeginErrorReadLine();
+
+                await process.WaitForExitAsync();
+
+                if (process.ExitCode != 0)
+                {
+                    var errorMessage = $"yt-dlp exited with code {process.ExitCode}. Details: {errorOutput}";
+                    ErrorHandler.HandleError(errorMessage, window);
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ErrorHandler.HandleError(ex, window, "Failed to execute yt-dlp. Please check your setup.");
                 return false;
             }
-
-            return true;
         }
 
         private static string? GetDownloadedFile(string saveFilePath)
         {
             var directory = Path.GetDirectoryName(saveFilePath);
+
             if (directory == null) return null;
 
             var allowedExtensions = new HashSet<string> { ".mp4", ".mkv", ".webm" };
-            var files = Directory.GetFiles(directory, $"{Path.GetFileNameWithoutExtension(saveFilePath)}.*")
+            var baseFileName = Path.GetFileNameWithoutExtension(saveFilePath);
+            var files = Directory.GetFiles(directory, $"{baseFileName}.*")
                 .Where(file => allowedExtensions.Contains(Path.GetExtension(file).ToLower()))
                 .ToList();
 
             return files.FirstOrDefault();
-        }
-
-        private static void SendFileReadyMessage(PhotinoWindow window, string filePath)
-        {
-            window.SendWebMessage($"FileReady: {filePath}");
         }
     }
 }
