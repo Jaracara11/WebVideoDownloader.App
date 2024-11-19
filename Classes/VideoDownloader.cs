@@ -1,6 +1,6 @@
-using Photino.NET;
 using System.Diagnostics;
 using System.Text;
+using Photino.NET;
 
 namespace WebVideoDownloader.App.Classes
 {
@@ -9,7 +9,20 @@ namespace WebVideoDownloader.App.Classes
         private static readonly string _ytDlpPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Binaries", "yt-dlp.exe");
         private static readonly string _ffmpegPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Binaries", "ffmpeg.exe");
 
-        public static async Task DownloadYoutubeVideoAsync(string videoUrl, PhotinoWindow window)
+        public static async Task HandleDownloadRequest(string message, PhotinoWindow window)
+        {
+            if (message.StartsWith("OpenFolder:"))
+            {
+                var filePath = message.Replace("OpenFolder:", "");
+                OpenContainingFolder(filePath);
+            }
+            else
+            {
+                await DownloadYoutubeVideoAsync(message, window);
+            }
+        }
+
+        private static async Task DownloadYoutubeVideoAsync(string videoUrl, PhotinoWindow window)
         {
             try
             {
@@ -123,6 +136,40 @@ namespace WebVideoDownloader.App.Classes
                 .ToList();
 
             return files.FirstOrDefault();
+        }
+
+        private static void OpenContainingFolder(string filePath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(filePath))
+                {
+                    ErrorHandler.HandleError("File path is null or empty.");
+                    return;
+                }
+
+                var directory = Path.GetDirectoryName(filePath);
+                directory = directory?.Trim();
+
+                if (string.IsNullOrEmpty(directory))
+                {
+                    ErrorHandler.HandleError("Failed to extract directory from file path.");
+                    return;
+                }
+
+                if (Directory.Exists(directory))
+                {
+                    Process.Start("explorer.exe", directory);
+                }
+                else
+                {
+                    ErrorHandler.HandleError($"The directory does not exist: {directory}");
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorHandler.HandleError($"Failed to open folder: {ex.Message}");
+            }
         }
     }
 }

@@ -20,18 +20,11 @@ namespace WebVideoDownloader.App
             window.WaitForClose();
         }
 
-        private static async void RequestHandler(object? sender, string videoUrl)
+        private static async void RequestHandler(object? sender, string message)
         {
             var window = (PhotinoWindow)sender!;
 
-            if (!string.IsNullOrEmpty(videoUrl))
-            {
-                await VideoDownloader.DownloadYoutubeVideoAsync(videoUrl, window);
-            }
-            else
-            {
-                ErrorHandler.HandleError("Invalid or missing Video URL.", window);
-            }
+            await VideoDownloader.HandleDownloadRequest(message, window);
         }
     }
 }
