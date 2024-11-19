@@ -1,16 +1,10 @@
 function sendUrl() {
   const urlInput = document.getElementById("url-input").value;
-  const downloadPath = prompt("Please enter the download path (e.g., C:\\Users\\YourName\\Downloads\\video.mp4):");
 
-  if (urlInput && downloadPath) {
-    const payload = {
-      videoUrl: urlInput,
-      downloadPath: downloadPath
-    };
-
-    window.external.sendMessage(JSON.stringify(payload));
+  if (urlInput) {
+    window.external.sendMessage(urlInput);
   } else {
-    document.getElementById("status").innerText = "Please provide both a URL and a valid download path.";
+    document.getElementById("status").innerText = "Please provide a valid video URL.";
   }
 }
 
@@ -25,6 +19,7 @@ window.external.receiveMessage((message) => {
     downloadLink.download = filePath.split(/[/\\]/).pop();
     downloadLink.innerText = 'Click here to download the video';
     downloadLink.style.display = 'block';
+
     statusDiv.innerHTML = '';
     statusDiv.appendChild(downloadLink);
   } else if (message.startsWith("Error:")) {

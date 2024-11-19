@@ -8,18 +8,17 @@ namespace WebVideoDownloader.App.Classes
         private static readonly string _ytDlpPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Binaries", "yt-dlp.exe");
         private static readonly string _ffmpegPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Binaries", "ffmpeg.exe");
 
-        public static async Task DownloadYoutubeVideoAsync(DownloadRequest request, PhotinoWindow window)
+        public static async Task DownloadYoutubeVideoAsync(string videoUrl, PhotinoWindow window)
         {
             try
             {
-                var videoUrl = request.VideoUrl;
-                var saveFilePath = request.DownloadPath;
-
                 if (string.IsNullOrEmpty(videoUrl) || !StringValidator.ValidateYouTubeUrl(videoUrl))
                 {
                     ErrorHandler.HandleError("Invalid or missing Video URL.", window);
                     return;
                 }
+
+                var saveFilePath = ShowSaveFileDialog();
 
                 if (string.IsNullOrEmpty(saveFilePath))
                 {
@@ -52,6 +51,17 @@ namespace WebVideoDownloader.App.Classes
             }
         }
 
+        private static string? ShowSaveFileDialog()
+        {
+            var dialog = new SaveFileDialog
+            {
+                Title = "Select Download Location",
+                Filter = "MP4 files|*.mp4|All files|*.*"
+            };
+
+            return dialog.ShowDialog() == DialogResult.OK ? dialog.FileName : null;
+        }
+
         private static async Task<bool> ExecuteYtDlpProcessAsync(string ytDlpPath, string arguments, PhotinoWindow window)
         {
             var processStartInfo = new ProcessStartInfo
@@ -65,26 +75,13 @@ namespace WebVideoDownloader.App.Classes
             };
 
             using var process = new Process { StartInfo = processStartInfo };
-            
-            var ytpProcessErrors = new List<string>();
-
-            process.ErrorDataReceived += (sender, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    ytpProcessErrors.Add(e.Data);
-                }
-            };
 
             process.Start();
-            process.BeginErrorReadLine();
-
             await process.WaitForExitAsync();
 
-            if (process.ExitCode != 0 || ytpProcessErrors.Any())
+            if (process.ExitCode != 0)
             {
-                var errorMessage = string.Join("; ", ytpProcessErrors);
-                ErrorHandler.HandleError($"yt-dlp process failed: {errorMessage}", window);
+                ErrorHandler.HandleError("yt-dlp process failed.", window);
                 return false;
             }
 
@@ -94,14 +91,9 @@ namespace WebVideoDownloader.App.Classes
         private static string? GetDownloadedFile(string saveFilePath)
         {
             var directory = Path.GetDirectoryName(saveFilePath);
-
-            if (directory == null)
-            {
-                return null;
-            }
+            if (directory == null) return null;
 
             var allowedExtensions = new HashSet<string> { ".mp4", ".mkv", ".webm" };
-
             var files = Directory.GetFiles(directory, $"{Path.GetFileNameWithoutExtension(saveFilePath)}.*")
                 .Where(file => allowedExtensions.Contains(Path.GetExtension(file).ToLower()))
                 .ToList();
