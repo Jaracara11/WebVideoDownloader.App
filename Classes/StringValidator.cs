@@ -1,29 +1,29 @@
 ﻿using System.Text.RegularExpressions;
+using Photino.NET;
 
-namespace WebVideoDownloader.App
+namespace WebVideoDownloader.App.Classes
 {
-    public static class StringValidator
+    public static partial class StringValidator
     {
-        public static bool ValidateYouTubeUrl(string videoUrl)
+        public static bool ValidateYouTubeUrl(string videoUrl, PhotinoWindow? window = null)
         {
             if (string.IsNullOrEmpty(videoUrl))
             {
-                Console.WriteLine("Invalid or missing Video URL.");
+                ErrorHandler.HandleError("Invalid or missing Video URL.", window);
                 return false;
             }
 
             if (!IsValidYouTubeUrl(videoUrl))
             {
-                Console.WriteLine("Invalid YouTube URL.");
+                ErrorHandler.HandleError("Invalid YouTube URL.", window);
                 return false;
             }
 
             return true;
         }
 
-        private static bool IsValidYouTubeUrl(string url)
-        {
-            return Regex.IsMatch(url, @"^(https?://)?(www\.)?(youtube\.com|youtu\.be)/.*$");
-        }
+        [GeneratedRegex(@"^(https?://)?(www\.)?(youtube\.com(/watch\?v=[\w-]+|/embed/[\w-]+)?|youtu\.be/[\w-]+).*", RegexOptions.IgnoreCase)]
+        private static partial Regex YouTubeUrlRegex();
+        private static bool IsValidYouTubeUrl(string url) => YouTubeUrlRegex().IsMatch(url);
     }
 }

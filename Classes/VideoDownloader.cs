@@ -1,71 +1,59 @@
-using System.Diagnostics;
 using Photino.NET;
+using System.Diagnostics;
 
-namespace WebVideoDownloader.App
+namespace WebVideoDownloader.App.Classes
 {
     public static class VideoDownloader
     {
-        private static readonly string _tempDirectory = Path.Combine(Path.GetTempPath(), "WebVideoDownloader");
+        private static readonly string _ytDlpPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Binaries", "yt-dlp.exe");
+        private static readonly string _ffmpegPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Binaries", "ffmpeg.exe");
 
-        static VideoDownloader()
-        {
-            if (!Directory.Exists(_tempDirectory))
-            {
-                Directory.CreateDirectory(_tempDirectory);
-            }
-        }
-
-        public static async Task DownloadYoutubeVideoAsync(string videoUrl, PhotinoWindow window)
+        public static async Task DownloadYoutubeVideoAsync(DownloadRequest request, PhotinoWindow window)
         {
             try
             {
+                var videoUrl = request.VideoUrl;
+                var saveFilePath = request.DownloadPath;
+
                 if (string.IsNullOrEmpty(videoUrl) || !StringValidator.ValidateYouTubeUrl(videoUrl))
                 {
-                    window.SendWebMessage("Invalid or missing Video URL.");
+                    ErrorHandler.HandleError("Invalid or missing Video URL.", window);
                     return;
                 }
 
-                var ytDlpPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Binaries", "yt-dlp.exe");
-                var ffmpegPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Binaries", "ffmpeg.exe");
-                var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                var outputFilePath = Path.Combine(_tempDirectory, $"downloaded_video_{timestamp}.%(ext)s");
-                var arguments = $"-f b -o \"{outputFilePath}\" --ffmpeg-location \"{ffmpegPath}\" \"{videoUrl}\"";
-                var errorMessages = await ExecuteProcessAsync(ytDlpPath, arguments);
-
-                if (errorMessages.Any())
+                if (string.IsNullOrEmpty(saveFilePath))
                 {
-                    var errorMessage = string.Join("; ", errorMessages);
-                    Console.WriteLine($"Error: yt-dlp process failed: {errorMessage}");
-                    window.SendWebMessage($"Error: yt-dlp process failed: {errorMessage}");
+                    ErrorHandler.HandleError("No save location selected.", window);
                     return;
                 }
 
-                var downloadedFile = GetDownloadedFile(outputFilePath);
+                var arguments = $"-f b -o \"{saveFilePath}.%(ext)s\" --ffmpeg-location \"{_ffmpegPath}\" \"{videoUrl}\"";
+                bool ytDlpProcess = await ExecuteYtDlpProcessAsync(_ytDlpPath, arguments, window);
+
+                if (!ytDlpProcess)
+                {
+                    return;
+                }
+
+                var downloadedFile = GetDownloadedFile(saveFilePath);
 
                 if (!string.IsNullOrEmpty(downloadedFile) && File.Exists(downloadedFile))
                 {
-                    Console.WriteLine($"File ready for streaming: {downloadedFile}");
-                    window.SendWebMessage($"File ready for download: {downloadedFile}");
-                    SendFilePathToFrontendAsync(downloadedFile, window);
-                    DeleteFileAfterDelay(downloadedFile, TimeSpan.FromMinutes(5));
+                    SendFileReadyMessage(window, downloadedFile);
                 }
                 else
                 {
-                    Console.WriteLine("Failed to download video.");
-                    window.SendWebMessage("Failed to download video.");
+                    ErrorHandler.HandleError("Failed to download video.", window);
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error: {ex.Message}");
-                window.SendWebMessage($"Error: {ex.Message}");
+                ErrorHandler.HandleError(ex, window);
             }
         }
 
-        private static async Task<List<string>> ExecuteProcessAsync(string ytDlpPath, string arguments)
+        private static async Task<bool> ExecuteYtDlpProcessAsync(string ytDlpPath, string arguments, PhotinoWindow window)
         {
-            var errorMessages = new List<string>();
-            var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromMinutes(5));
             var processStartInfo = new ProcessStartInfo
             {
                 FileName = ytDlpPath,
@@ -76,88 +64,54 @@ namespace WebVideoDownloader.App
                 CreateNoWindow = true
             };
 
-            using (var process = new Process { StartInfo = processStartInfo })
+            using var process = new Process { StartInfo = processStartInfo };
+            
+            var ytpProcessErrors = new List<string>();
+
+            process.ErrorDataReceived += (sender, e) =>
             {
-                process.ErrorDataReceived += (sender, e) =>
+                if (!string.IsNullOrEmpty(e.Data))
                 {
-                    if (!string.IsNullOrEmpty(e.Data))
-                    {
-                        errorMessages.Add(e.Data);
-                    }
-                };
-
-                process.Start();
-                process.BeginOutputReadLine();
-                process.BeginErrorReadLine();
-
-                var processExitTask = process.WaitForExitAsync(cancellationTokenSource.Token);
-                var timeoutTask = Task.Delay(TimeSpan.FromMinutes(5), cancellationTokenSource.Token);
-
-                if (await Task.WhenAny(processExitTask, timeoutTask) == timeoutTask)
-                {
-                    process.Kill();
-                    errorMessages.Add("yt-dlp process timed out.");
+                    ytpProcessErrors.Add(e.Data);
                 }
+            };
 
-                if (process.ExitCode != 0 || errorMessages.Any())
-                {
-                    errorMessages.Add($"yt-dlp process failed with exit code {process.ExitCode}");
-                }
+            process.Start();
+            process.BeginErrorReadLine();
+
+            await process.WaitForExitAsync();
+
+            if (process.ExitCode != 0 || ytpProcessErrors.Any())
+            {
+                var errorMessage = string.Join("; ", ytpProcessErrors);
+                ErrorHandler.HandleError($"yt-dlp process failed: {errorMessage}", window);
+                return false;
             }
 
-            return errorMessages;
+            return true;
         }
 
-        private static string? GetDownloadedFile(string outputFilePath)
+        private static string? GetDownloadedFile(string saveFilePath)
         {
-            var directory = Path.GetDirectoryName(outputFilePath);
+            var directory = Path.GetDirectoryName(saveFilePath);
 
             if (directory == null)
             {
-                Console.WriteLine("Error: Unable to determine the directory for the output file.");
                 return null;
             }
 
             var allowedExtensions = new HashSet<string> { ".mp4", ".mkv", ".webm" };
-            var files = Directory.GetFiles(directory, $"{Path.GetFileNameWithoutExtension(outputFilePath)}.*")
-                                 .Where(file => allowedExtensions.Contains(Path.GetExtension(file).ToLower()))
-                                 .ToList();
+
+            var files = Directory.GetFiles(directory, $"{Path.GetFileNameWithoutExtension(saveFilePath)}.*")
+                .Where(file => allowedExtensions.Contains(Path.GetExtension(file).ToLower()))
+                .ToList();
 
             return files.FirstOrDefault();
         }
 
-        private static void SendFilePathToFrontendAsync(string outputFile, PhotinoWindow window)
+        private static void SendFileReadyMessage(PhotinoWindow window, string filePath)
         {
-            window.SendWebMessage($"File ready for download: {outputFile}");
-            Console.WriteLine($"File path sent to frontend: {outputFile}");
-        }
-
-        private static void DeleteFileAfterDelay(string filePath, TimeSpan delay)
-        {
-            var cancellationTokenSource = new CancellationTokenSource();
-            var token = cancellationTokenSource.Token;
-
-            Task.Delay(delay, token).ContinueWith(t =>
-            {
-                if (t.IsCanceled)
-                {
-                    Console.WriteLine("File deletion was canceled.");
-                    return;
-                }
-
-                try
-                {
-                    if (File.Exists(filePath))
-                    {
-                        File.Delete(filePath);
-                        Console.WriteLine($"Deleted file after {delay.TotalMinutes} minutes: {filePath}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error deleting file: {ex.Message}");
-                }
-            }, TaskScheduler.Default);
+            window.SendWebMessage($"FileReady: {filePath}");
         }
     }
 }
