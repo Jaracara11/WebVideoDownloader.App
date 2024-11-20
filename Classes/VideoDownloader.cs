@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Text;
-using Photino.NET;
 
 namespace WebVideoDownloader.App.Classes
 {
@@ -9,7 +8,7 @@ namespace WebVideoDownloader.App.Classes
         private static readonly string _ytDlpPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Binaries", "yt-dlp.exe");
         private static readonly string _ffmpegPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Binaries", "ffmpeg.exe");
 
-        public static async Task HandleDownloadRequest(string message, PhotinoWindow window)
+        public static async Task HandleUIRequest(string message)
         {
             if (message.StartsWith("OpenFolder:"))
             {
@@ -18,17 +17,18 @@ namespace WebVideoDownloader.App.Classes
             }
             else
             {
-                await DownloadYoutubeVideoAsync(message, window);
+                await DownloadYoutubeVideoAsync(message);
             }
         }
 
-        private static async Task DownloadYoutubeVideoAsync(string videoUrl, PhotinoWindow window)
+        private static async Task DownloadYoutubeVideoAsync(string videoUrl)
         {
             try
             {
-                if (string.IsNullOrEmpty(videoUrl) || !StringValidator.ValidateYouTubeUrl(videoUrl))
+                var window = PhotinoWindowManager.GetInstance();
+
+                if (!StringValidator.ValidateYouTubeUrl(videoUrl))
                 {
-                    ErrorHandler.HandleError("Invalid or missing Video URL.", window);
                     return;
                 }
 
@@ -36,12 +36,12 @@ namespace WebVideoDownloader.App.Classes
 
                 if (string.IsNullOrEmpty(saveFilePath))
                 {
-                    ErrorHandler.HandleError("No save location selected.", window);
+                    ErrorHandler.HandleError("No save location selected.");
                     return;
                 }
 
                 var arguments = $"-f b -o \"{saveFilePath}\" --ffmpeg-location \"{_ffmpegPath}\" \"{videoUrl}\"";
-                bool ytDlpProcess = await ExecuteYtDlpProcessAsync(_ytDlpPath, arguments, window);
+                bool ytDlpProcess = await ExecuteYtDlpProcessAsync(_ytDlpPath, arguments);
 
                 if (!ytDlpProcess)
                 {
@@ -56,12 +56,12 @@ namespace WebVideoDownloader.App.Classes
                 }
                 else
                 {
-                    ErrorHandler.HandleError("Failed to download video.", window);
+                    ErrorHandler.HandleError("Failed to download video.");
                 }
             }
             catch (Exception ex)
             {
-                ErrorHandler.HandleError(ex, window);
+                ErrorHandler.HandleError(ex);
             }
         }
 
@@ -76,7 +76,7 @@ namespace WebVideoDownloader.App.Classes
             return dialog.ShowDialog() == DialogResult.OK ? dialog.FileName : null;
         }
 
-        private static async Task<bool> ExecuteYtDlpProcessAsync(string ytDlpPath, string arguments, PhotinoWindow window)
+        private static async Task<bool> ExecuteYtDlpProcessAsync(string ytDlpPath, string arguments)
         {
             var processStartInfo = new ProcessStartInfo
             {
@@ -110,7 +110,7 @@ namespace WebVideoDownloader.App.Classes
                 if (process.ExitCode != 0)
                 {
                     var errorMessage = $"yt-dlp exited with code {process.ExitCode}. Details: {errorOutput}";
-                    ErrorHandler.HandleError(errorMessage, window);
+                    ErrorHandler.HandleError(errorMessage);
                     return false;
                 }
 
@@ -118,7 +118,7 @@ namespace WebVideoDownloader.App.Classes
             }
             catch (Exception ex)
             {
-                ErrorHandler.HandleError(ex, window, "Failed to execute yt-dlp. Please check your setup.");
+                ErrorHandler.HandleError(ex, "Failed to execute yt-dlp. Please check your setup.");
                 return false;
             }
         }

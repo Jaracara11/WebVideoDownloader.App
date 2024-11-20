@@ -1,21 +1,20 @@
 ﻿using System.Text.RegularExpressions;
-using Photino.NET;
 
 namespace WebVideoDownloader.App.Classes
 {
     public static partial class StringValidator
     {
-        public static bool ValidateYouTubeUrl(string videoUrl, PhotinoWindow? window = null)
+        public static bool ValidateYouTubeUrl(string videoUrl)
         {
             if (string.IsNullOrEmpty(videoUrl))
             {
-                ErrorHandler.HandleError("Invalid or missing Video URL.", window);
+                ErrorHandler.HandleError("Invalid or missing Video URL.");
                 return false;
             }
 
             if (!IsValidYouTubeUrl(videoUrl))
             {
-                ErrorHandler.HandleError("Invalid YouTube URL.", window);
+                ErrorHandler.HandleError("Invalid YouTube URL.");
                 return false;
             }
 
