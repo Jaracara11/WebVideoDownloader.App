@@ -1,8 +1,13 @@
 {
   "profiles": {
-    "WebVideoDownloader.App": {
+    "Kestrel": {
       "commandName": "Project",
-      "workingDirectory": "$(ProjectDir)"
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "dotnetRunMessages": true,
+      "applicationUrl": "http://10.0.0.4:5000"
     }
   }
 }

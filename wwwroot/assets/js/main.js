@@ -1,55 +1,49 @@
-const downloadButton = document.getElementById("download-btn");
-const statusDiv = document.getElementById("status");
-const urlInput = document.getElementById("url-input");
+document.addEventListener("DOMContentLoaded", () => {
+  const downloadBtn = document.getElementById("download-btn");
+  const urlInput = document.getElementById("url-input");
+  const statusDiv = document.getElementById("status");
 
-const toggleButtonState = (isDisabled) => downloadButton.disabled = isDisabled;
+  downloadBtn.addEventListener("click", async () => {
+    const videoUrl = urlInput.value.trim();
 
-const sendUrl = () => {
-  const url = urlInput.value.trim();
+    if (!videoUrl) {
+      statusDiv.textContent = "Please enter a video URL.";
+      statusDiv.style.color = "red";
+      return;
+    }
 
-  if (url) {
-    toggleButtonState(true);
-    statusDiv.innerText = "Downloading... Please wait.";
-    window.external.sendMessage(url);
-  } else {
-    statusDiv.innerText = "Please provide a valid video URL.";
-    toggleButtonState(false);
-  }
-};
+    try {
+      const response = await fetch("/api/download", {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: videoUrl,
+      });
 
-const handleFileReady = (filePath) => {
-  const downloadMessage = `File successfully downloaded at: ${filePath}`;
-  const pTag = document.createElement('p');
-  const link = document.createElement('a');
+      if (response.ok) {
+        const contentDisposition = response.headers.get('Content-Disposition');
+        const filename = contentDisposition.match(/filename="(.+)"/)[1];
 
-  link.href = "#";
-  link.innerText = "Click here to open the folder with the downloaded file";
-  link.onclick = () => {
-    window.external.sendMessage(`OpenFolder:${filePath}`);
-  };
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
 
-  pTag.innerText = downloadMessage;
-  pTag.style.color = 'green';
-  statusDiv.innerHTML = '';
-  statusDiv.appendChild(pTag);
-  statusDiv.appendChild(link);
+        const a = document.createElement("a");
+        a.href = downloadUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
 
-  toggleButtonState(false);
-};
-
-const handleError = (errorMessage) => {
-  statusDiv.innerText = errorMessage;
-  statusDiv.style.color = 'red';
-  toggleButtonState(false);
-};
-
-window.external.receiveMessage((message) => {
-  if (message.startsWith("FileReady:")) {
-    const filePath = message.replace("FileReady:", "");
-    handleFileReady(filePath);
-  } else if (message.startsWith("Error:")) {
-    handleError(message.replace("Error:", ""));
-  }
+        window.URL.revokeObjectURL(downloadUrl);
+        statusDiv.textContent = "Video downloaded successfully.";
+        statusDiv.style.color = "green";
+      } else {
+        const error = await response.json();
+        statusDiv.textContent = error.message || "Failed to download video.";
+        statusDiv.style.color = "red";
+      }
+    } catch (error) {
+      statusDiv.textContent = "Error: Unable to connect to the server.";
+      statusDiv.style.color = "red";
+    }
+  });
 });
-
-downloadButton.addEventListener('click', sendUrl);

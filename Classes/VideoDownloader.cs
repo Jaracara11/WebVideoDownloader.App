@@ -1,5 +1,10 @@
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace WebVideoDownloader.App.Classes
 {
@@ -8,72 +13,43 @@ namespace WebVideoDownloader.App.Classes
         private static readonly string _ytDlpPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Binaries", "yt-dlp.exe");
         private static readonly string _ffmpegPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Binaries", "ffmpeg.exe");
 
-        public static async Task HandleUIRequest(string message)
-        {
-            if (message.StartsWith("OpenFolder:"))
-            {
-                var filePath = message.Replace("OpenFolder:", "");
-                OpenContainingFolder(filePath);
-            }
-            else
-            {
-                await DownloadYoutubeVideoAsync(message);
-            }
-        }
-
-        private static async Task DownloadYoutubeVideoAsync(string videoUrl)
+        public static async Task<string?> DownloadYoutubeVideoAsync(string videoUrl, string outputDirectory)
         {
             try
             {
-                var window = PhotinoWindowManager.GetInstance();
-
-                if (!StringValidator.ValidateYouTubeUrl(videoUrl))
+                if (string.IsNullOrEmpty(videoUrl))
                 {
-                    return;
+                    throw new ArgumentException("Video URL cannot be null or empty.");
                 }
 
-                var saveFilePath = ShowSaveFileDialog();
-
-                if (string.IsNullOrEmpty(saveFilePath))
+                if (!Directory.Exists(outputDirectory))
                 {
-                    ErrorHandler.HandleError("No save location selected.");
-                    return;
+                    Directory.CreateDirectory(outputDirectory);
                 }
 
-                var arguments = $"-f b -o \"{saveFilePath}\" --ffmpeg-location \"{_ffmpegPath}\" \"{videoUrl}\"";
-                bool ytDlpProcess = await ExecuteYtDlpProcessAsync(_ytDlpPath, arguments);
+                var saveFilePath = Path.Combine(outputDirectory, "video.mp4");
+                var arguments = $"-o \"{saveFilePath}\" --ffmpeg-location \"{_ffmpegPath}\" \"{videoUrl}\"";
+                var ytDlpSuccess = await ExecuteYtDlpProcessAsync(_ytDlpPath, arguments);
 
-                if (!ytDlpProcess)
+                if (!ytDlpSuccess)
                 {
-                    return;
+                    return null;
                 }
 
                 var downloadedFile = GetDownloadedFile(saveFilePath);
 
                 if (!string.IsNullOrEmpty(downloadedFile) && File.Exists(downloadedFile))
                 {
-                    window.SendWebMessage($"FileReady: {downloadedFile}");
+                    return downloadedFile;
                 }
-                else
-                {
-                    ErrorHandler.HandleError("Failed to download video.");
-                }
+
+                throw new Exception("Failed to locate the downloaded video file.");
             }
             catch (Exception ex)
             {
-                ErrorHandler.HandleError(ex);
+                ErrorHandler.HandleError(ex, "An error occurred while downloading the video.");
+                return null;
             }
-        }
-
-        private static string? ShowSaveFileDialog()
-        {
-            var dialog = new SaveFileDialog
-            {
-                Title = "Select Download Location",
-                Filter = "MP4 files|*.mp4|All files|*.*"
-            };
-
-            return dialog.ShowDialog() == DialogResult.OK ? dialog.FileName : null;
         }
 
         private static async Task<bool> ExecuteYtDlpProcessAsync(string ytDlpPath, string arguments)
@@ -125,50 +101,23 @@ namespace WebVideoDownloader.App.Classes
 
         private static string? GetDownloadedFile(string saveFilePath)
         {
-            var directory = Path.GetDirectoryName(saveFilePath);
-
-            if (directory == null) return null;
-
-            var allowedExtensions = new HashSet<string> { ".mp4", ".mkv", ".webm" };
-            var baseFileName = Path.GetFileNameWithoutExtension(saveFilePath);
-            var files = Directory.GetFiles(directory, $"{baseFileName}.*")
-                .Where(file => allowedExtensions.Contains(Path.GetExtension(file).ToLower()))
-                .ToList();
-
-            return files.FirstOrDefault();
-        }
-
-        private static void OpenContainingFolder(string filePath)
-        {
             try
             {
-                if (string.IsNullOrEmpty(filePath))
-                {
-                    ErrorHandler.HandleError("File path is null or empty.");
-                    return;
-                }
+                var directory = Path.GetDirectoryName(saveFilePath);
+                if (directory == null) return null;
 
-                var directory = Path.GetDirectoryName(filePath);
-                directory = directory?.Trim();
+                var allowedExtensions = new HashSet<string> { ".mp4", ".mkv", ".webm" };
+                var baseFileName = Path.GetFileNameWithoutExtension(saveFilePath);
+                var files = Directory.GetFiles(directory, $"{baseFileName}.*")
+                    .Where(file => allowedExtensions.Contains(Path.GetExtension(file).ToLower()))
+                    .ToList();
 
-                if (string.IsNullOrEmpty(directory))
-                {
-                    ErrorHandler.HandleError("Failed to extract directory from file path.");
-                    return;
-                }
-
-                if (Directory.Exists(directory))
-                {
-                    Process.Start("explorer.exe", directory);
-                }
-                else
-                {
-                    ErrorHandler.HandleError($"The directory does not exist: {directory}");
-                }
+                return files.FirstOrDefault();
             }
             catch (Exception ex)
             {
-                ErrorHandler.HandleError($"Failed to open folder: {ex.Message}");
+                ErrorHandler.HandleError(ex, "Error occurred while locating the downloaded file.");
+                return null;
             }
         }
     }

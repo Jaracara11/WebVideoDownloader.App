@@ -1,11 +1,11 @@
+using System;
+
 namespace WebVideoDownloader.App.Classes
 {
     public static class ErrorHandler
     {
         public static void HandleError(object error, string? customMessage = null)
         {
-            var window = PhotinoWindowManager.GetInstance();
-
             string errorMessage = error switch
             {
                 Exception ex => HandleException(ex, customMessage),
@@ -13,7 +13,7 @@ namespace WebVideoDownloader.App.Classes
                 _ => "An unknown error occurred."
             };
 
-            window.SendWebMessage($"Error: {errorMessage}");
+            Console.WriteLine($"Error: {errorMessage}");
         }
 
         private static string HandleException(Exception ex, string? customMessage)
