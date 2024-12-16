@@ -12,6 +12,10 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    downloadBtn.disabled = true;
+    statusDiv.textContent = "Downloading... Please wait.";
+    statusDiv.style.color = "blue";
+
     try {
       const response = await fetch("/api/download", {
         method: "POST",
@@ -21,12 +25,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (response.ok) {
         const contentDisposition = response.headers.get('Content-Disposition');
-        const filename = contentDisposition.match(/filename="(.+)"/)[1];
+        const filename = contentDisposition ? contentDisposition.match(/filename="(.+)"/)[1] : 'video.mp4';
 
         const blob = await response.blob();
         const downloadUrl = window.URL.createObjectURL(blob);
-
         const a = document.createElement("a");
+
         a.href = downloadUrl;
         a.download = filename;
         document.body.appendChild(a);
@@ -44,6 +48,8 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (error) {
       statusDiv.textContent = "Error: Unable to connect to the server.";
       statusDiv.style.color = "red";
+    } finally {
+      downloadBtn.disabled = false;
     }
   });
 });
